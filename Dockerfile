@@ -1,23 +1,27 @@
-# Use an official Node.js runtime as a parent image
-FROM node:16
-
-# Set the working directory in the container
+cat > Dockerfile << 'EOF'
+FROM node:16-alpine AS builder
 WORKDIR /app
-
-# Copy package.json and package-lock.json to the working directory
 COPY package*.json ./
-
-# Install app dependencies, including Material-UI 5
-RUN npm install
-
-# Copy the rest of the application code to the working directory
+RUN npm ci
 COPY . .
-
-# Build the React app
 RUN npm run build
 
-# Expose the port that the app will run on (adjust if needed)
-EXPOSE 3000
+FROM nginx:1.25-alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+EOFcat > Dockerfile << 'EOF'
+FROM node:16-alpine AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
 
-# Define the command to start the app
-CMD ["npm", "start"]
+FROM nginx:1.25-alpine
+COPY --from=builder /app/build /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+EOF
